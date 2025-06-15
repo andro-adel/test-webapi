@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using test_webapi.Data;
+using test_webapi.Core.Interfaces;
 using test_webapi.Models;
 
 namespace test_webapi.Controllers
@@ -9,27 +9,24 @@ namespace test_webapi.Controllers
     [ApiController]
     public class AuthorsController : ControllerBase
     {
-        private readonly LibraryContext _context;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public AuthorsController(LibraryContext context)
+        public AuthorsController(IUnitOfWork unitOfWork)
         {
-            _context = context;
+            _unitOfWork = unitOfWork;
         }
 
-        // GET: api/Authors
-        [HttpGet]
+        // GET: api/Authors        [HttpGet]
         public async Task<ActionResult<IEnumerable<Author>>> GetAuthors()
         {
-            return await _context.Authors.Include(a => a.Books).ToListAsync();
+            var authors = await _unitOfWork.Authors.GetAllAsync();
+            return Ok(authors);
         }
 
-        // GET: api/Authors/5
-        [HttpGet("{id}")]
+        // GET: api/Authors/5        [HttpGet("{id}")]
         public async Task<ActionResult<Author>> GetAuthor(int id)
         {
-            var author = await _context.Authors
-                .Include(a => a.Books)
-                .FirstOrDefaultAsync(a => a.Id == id);
+            var author = await _unitOfWork.Authors.GetByIdAsync(id);
 
             if (author == null)
             {
@@ -39,18 +36,16 @@ namespace test_webapi.Controllers
             return author;
         }
 
-        // POST: api/Authors
-        [HttpPost]
+        // POST: api/Authors        [HttpPost]
         public async Task<ActionResult<Author>> PostAuthor(Author author)
         {
-            _context.Authors.Add(author);
-            await _context.SaveChangesAsync();
+            await _unitOfWork.Authors.AddAsync(author);
+            await _unitOfWork.CompleteAsync();
 
             return CreatedAtAction(nameof(GetAuthor), new { id = author.Id }, author);
         }
 
-        // PUT: api/Authors/5
-        [HttpPut("{id}")]
+        // PUT: api/Authors/5        [HttpPut("{id}")]
         public async Task<IActionResult> PutAuthor(int id, Author author)
         {
             if (id != author.Id)
@@ -58,15 +53,15 @@ namespace test_webapi.Controllers
                 return BadRequest();
             }
 
-            _context.Entry(author).State = EntityState.Modified;
+            await _unitOfWork.Authors.UpdateAsync(author);
 
             try
             {
-                await _context.SaveChangesAsync();
+                await _unitOfWork.CompleteAsync();
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!AuthorExists(id))
+                if (!await AuthorExists(id))
                 {
                     return NotFound();
                 }
@@ -79,25 +74,24 @@ namespace test_webapi.Controllers
             return NoContent();
         }
 
-        // DELETE: api/Authors/5
-        [HttpDelete("{id}")]
+        // DELETE: api/Authors/5        [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteAuthor(int id)
         {
-            var author = await _context.Authors.FindAsync(id);
+            var author = await _unitOfWork.Authors.GetByIdAsync(id);
             if (author == null)
             {
                 return NotFound();
             }
 
-            _context.Authors.Remove(author);
-            await _context.SaveChangesAsync();
+            await _unitOfWork.Authors.DeleteAsync(author);
+            await _unitOfWork.CompleteAsync();
 
             return NoContent();
         }
 
-        private bool AuthorExists(int id)
+        private async Task<bool> AuthorExists(int id)
         {
-            return _context.Authors.Any(e => e.Id == id);
+            return await _unitOfWork.Authors.ExistsAsync(id);
         }
     }
 }

@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using test_webapi.Data;
+using test_webapi.Core.Interfaces;
 using test_webapi.Models;
 
 namespace test_webapi.Controllers
@@ -9,27 +9,24 @@ namespace test_webapi.Controllers
     [ApiController]
     public class CategoriesController : ControllerBase
     {
-        private readonly LibraryContext _context;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public CategoriesController(LibraryContext context)
+        public CategoriesController(IUnitOfWork unitOfWork)
         {
-            _context = context;
+            _unitOfWork = unitOfWork;
         }
 
-        // GET: api/Categories
-        [HttpGet]
+        // GET: api/Categories        [HttpGet]
         public async Task<ActionResult<IEnumerable<Category>>> GetCategories()
         {
-            return await _context.Categories.Include(c => c.Books).ToListAsync();
+            var categories = await _unitOfWork.Categories.GetAllAsync();
+            return Ok(categories);
         }
 
-        // GET: api/Categories/5
-        [HttpGet("{id}")]
+        // GET: api/Categories/5        [HttpGet("{id}")]
         public async Task<ActionResult<Category>> GetCategory(int id)
         {
-            var category = await _context.Categories
-                .Include(c => c.Books)
-                .FirstOrDefaultAsync(c => c.Id == id);
+            var category = await _unitOfWork.Categories.GetByIdAsync(id);
 
             if (category == null)
             {
@@ -39,18 +36,16 @@ namespace test_webapi.Controllers
             return category;
         }
 
-        // POST: api/Categories
-        [HttpPost]
+        // POST: api/Categories        [HttpPost]
         public async Task<ActionResult<Category>> PostCategory(Category category)
         {
-            _context.Categories.Add(category);
-            await _context.SaveChangesAsync();
+            await _unitOfWork.Categories.AddAsync(category);
+            await _unitOfWork.CompleteAsync();
 
             return CreatedAtAction(nameof(GetCategory), new { id = category.Id }, category);
         }
 
-        // PUT: api/Categories/5
-        [HttpPut("{id}")]
+        // PUT: api/Categories/5        [HttpPut("{id}")]
         public async Task<IActionResult> PutCategory(int id, Category category)
         {
             if (id != category.Id)
@@ -58,15 +53,15 @@ namespace test_webapi.Controllers
                 return BadRequest();
             }
 
-            _context.Entry(category).State = EntityState.Modified;
+            await _unitOfWork.Categories.UpdateAsync(category);
 
             try
             {
-                await _context.SaveChangesAsync();
+                await _unitOfWork.CompleteAsync();
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!CategoryExists(id))
+                if (!await CategoryExists(id))
                 {
                     return NotFound();
                 }
@@ -79,25 +74,24 @@ namespace test_webapi.Controllers
             return NoContent();
         }
 
-        // DELETE: api/Categories/5
-        [HttpDelete("{id}")]
+        // DELETE: api/Categories/5        [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteCategory(int id)
         {
-            var category = await _context.Categories.FindAsync(id);
+            var category = await _unitOfWork.Categories.GetByIdAsync(id);
             if (category == null)
             {
                 return NotFound();
             }
 
-            _context.Categories.Remove(category);
-            await _context.SaveChangesAsync();
+            await _unitOfWork.Categories.DeleteAsync(category);
+            await _unitOfWork.CompleteAsync();
 
             return NoContent();
         }
 
-        private bool CategoryExists(int id)
+        private async Task<bool> CategoryExists(int id)
         {
-            return _context.Categories.Any(e => e.Id == id);
+            return await _unitOfWork.Categories.ExistsAsync(id);
         }
     }
 }

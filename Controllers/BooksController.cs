@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using test_webapi.Data;
+using test_webapi.Core.Interfaces;
 using test_webapi.Models;
 
 namespace test_webapi.Controllers
@@ -9,31 +9,24 @@ namespace test_webapi.Controllers
     [ApiController]
     public class BooksController : ControllerBase
     {
-        private readonly LibraryContext _context;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public BooksController(LibraryContext context)
+        public BooksController(IUnitOfWork unitOfWork)
         {
-            _context = context;
+            _unitOfWork = unitOfWork;
         }
 
-        // GET: api/Books
-        [HttpGet]
+        // GET: api/Books        [HttpGet]
         public async Task<ActionResult<IEnumerable<Book>>> GetBooks()
         {
-            return await _context.Books
-                .Include(b => b.Author)
-                .Include(b => b.Category)
-                .ToListAsync();
+            var books = await _unitOfWork.Books.GetAllAsync();
+            return Ok(books);
         }
 
-        // GET: api/Books/5
-        [HttpGet("{id}")]
+        // GET: api/Books/5        [HttpGet("{id}")]
         public async Task<ActionResult<Book>> GetBook(int id)
         {
-            var book = await _context.Books
-                .Include(b => b.Author)
-                .Include(b => b.Category)
-                .FirstOrDefaultAsync(b => b.Id == id);
+            var book = await _unitOfWork.Books.GetByIdAsync(id);
 
             if (book == null)
             {
@@ -43,18 +36,16 @@ namespace test_webapi.Controllers
             return book;
         }
 
-        // POST: api/Books
-        [HttpPost]
+        // POST: api/Books        [HttpPost]
         public async Task<ActionResult<Book>> PostBook(Book book)
         {
-            _context.Books.Add(book);
-            await _context.SaveChangesAsync();
+            await _unitOfWork.Books.AddAsync(book);
+            await _unitOfWork.CompleteAsync();
 
             return CreatedAtAction(nameof(GetBook), new { id = book.Id }, book);
         }
 
-        // PUT: api/Books/5
-        [HttpPut("{id}")]
+        // PUT: api/Books/5        [HttpPut("{id}")]
         public async Task<IActionResult> PutBook(int id, Book book)
         {
             if (id != book.Id)
@@ -62,15 +53,15 @@ namespace test_webapi.Controllers
                 return BadRequest();
             }
 
-            _context.Entry(book).State = EntityState.Modified;
+            await _unitOfWork.Books.UpdateAsync(book);
 
             try
             {
-                await _context.SaveChangesAsync();
+                await _unitOfWork.CompleteAsync();
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!BookExists(id))
+                if (!await BookExists(id))
                 {
                     return NotFound();
                 }
@@ -83,25 +74,24 @@ namespace test_webapi.Controllers
             return NoContent();
         }
 
-        // DELETE: api/Books/5
-        [HttpDelete("{id}")]
+        // DELETE: api/Books/5        [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteBook(int id)
         {
-            var book = await _context.Books.FindAsync(id);
+            var book = await _unitOfWork.Books.GetByIdAsync(id);
             if (book == null)
             {
                 return NotFound();
             }
 
-            _context.Books.Remove(book);
-            await _context.SaveChangesAsync();
+            await _unitOfWork.Books.DeleteAsync(book);
+            await _unitOfWork.CompleteAsync();
 
             return NoContent();
         }
 
-        private bool BookExists(int id)
+        private async Task<bool> BookExists(int id)
         {
-            return _context.Books.Any(e => e.Id == id);
+            return await _unitOfWork.Books.ExistsAsync(id);
         }
     }
 }
