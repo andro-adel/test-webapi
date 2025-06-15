@@ -1,0 +1,17 @@
+### إضافة تصنيف
+POST {{test_webapi_HostAddress}}/api/categories
+Content-Type: application/json
+
+{
+  "name": "Programming",
+  "description": "Computer Programming Books"
+}
+
+### إضافة مؤلف
+POST {{test_webapi_HostAddress}}/api/authors
+Content-Type: application/json
+
+{
+  "name": "Robert C. Martin",
+  "biography": "Robert Cecil Martin is an American software engineer, instructor, and best-selling author"
+}

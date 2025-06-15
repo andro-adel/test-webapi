@@ -1,0 +1,37 @@
+@test_webapi_HostAddress = http://localhost:5145
+
+### إضافة كتاب جديد
+POST {{test_webapi_HostAddress}}/api/books
+Content-Type: application/json
+
+{
+  "title": "Clean Code",
+  "isbn": "978-0132350884",
+  "publicationYear": 2008,
+  "authorId": 1,
+  "categoryId": 1,
+  "isAvailable": true
+}
+
+### الحصول على جميع الكتب
+GET {{test_webapi_HostAddress}}/api/books
+
+### الحصول على كتاب محدد
+GET {{test_webapi_HostAddress}}/api/books/1
+
+### تحديث كتاب
+PUT {{test_webapi_HostAddress}}/api/books/1
+Content-Type: application/json
+
+{
+  "id": 1,
+  "title": "Clean Code: A Handbook of Agile Software Craftsmanship",
+  "isbn": "978-0132350884",
+  "publicationYear": 2008,
+  "authorId": 1,
+  "categoryId": 1,
+  "isAvailable": true
+}
+
+### حذف كتاب
+DELETE {{test_webapi_HostAddress}}/api/books/1
